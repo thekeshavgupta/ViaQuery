@@ -220,8 +220,9 @@ export const JobFindingHub: React.FC = () => {
         // Filters in memory
         const roleQueries = filters.role
           .split(',')
-          .map(value => value.trim().toLowerCase().split(/\s+/).filter(Boolean))
-          .filter(words => words.length > 0);
+          .map(role => role.trim().toLowerCase())
+          .filter(Boolean)
+          .map(role => role.split(/\s+/).filter(Boolean));
         const locTargets = filters.location
           ? filters.location.split(',').map(s => s.trim().toLowerCase()).filter(Boolean)
           : [];
@@ -623,11 +624,13 @@ export const JobFindingHub: React.FC = () => {
                     onChange={(e) => {
                       const value = typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value;
                       const selected = value as string[];
+                      const selectedContinents = selected.filter(continent => continent !== 'All Continents');
+                      const shouldSelectAll = selected.includes('All Continents') && filters.continent !== 'All Continents';
                       setFilters(f => ({
                         ...f,
-                        continent: selected.length === 0 || selected.includes('All Continents')
+                        continent: selected.length === 0 || shouldSelectAll
                           ? 'All Continents'
-                          : selected.join(', ')
+                          : selectedContinents.join(', ')
                       }));
                     }}
                     input={<OutlinedInput startAdornment={<InputAdornment position="start"><PublicIcon sx={{ color: '#64748b', fontSize: 20 }} /></InputAdornment>} sx={{ borderRadius: 2.5 }} />}
