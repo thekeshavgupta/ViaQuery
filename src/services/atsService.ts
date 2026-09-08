@@ -54,12 +54,18 @@ export function parseAtsAndSlug(company: string, rawAts: string, sampleUrl: stri
   const isStaleGrammarlyAshbyRow = compSlug === 'grammarly' && urlLower.includes('superhuman.com');
   const isEmployCareersRow = urlLower.includes('careers.employinc.com');
   const isHrtCustomCareersRow = compSlug === 'hudsonrivertrading' && urlLower.includes('hudsonrivertrading.com');
+  const isWeightsAndBiasesRow = compSlug === 'weightsandbiases' || compSlug === 'wandb';
+  const isTinderRow = compSlug === 'tinder';
 
   let normalizedAts: 'greenhouse' | 'ashby' | 'lever' | 'smartrecruiters' | 'workday' | 'internal' | 'other' = 'other';
   let slug = compSlug;
 
   // 1. Detect ATS type from explicit column or URL
-  if (isStaleGrammarlyAshbyRow || isEmployCareersRow || isHrtCustomCareersRow) {
+  if (isWeightsAndBiasesRow) {
+    normalizedAts = 'greenhouse';
+  } else if (isTinderRow) {
+    normalizedAts = 'lever';
+  } else if (isStaleGrammarlyAshbyRow || isEmployCareersRow || isHrtCustomCareersRow) {
     normalizedAts = 'other';
   } else if (atsLower.includes('greenhouse') || urlLower.includes('greenhouse.io') || urlLower.includes('grnhse_app')) {
     normalizedAts = 'greenhouse';
@@ -124,6 +130,12 @@ export function parseAtsAndSlug(company: string, rawAts: string, sampleUrl: stri
         slug = mSmart[1];
       }
     }
+  }
+
+  if (isWeightsAndBiasesRow) {
+    slug = 'weights_and_biases';
+  } else if (isTinderRow) {
+    slug = 'matchgroup';
   }
 
   const isInternalOrUnsupported =

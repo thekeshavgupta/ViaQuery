@@ -67,6 +67,8 @@ export const JobFindingHub: React.FC = () => {
   const [companyOpeningCounts, setCompanyOpeningCounts] = useState<Record<string, number>>({});
   const [companyFetchedCounts, setCompanyFetchedCounts] = useState<Record<string, number>>({});
   const [companyFetchErrors, setCompanyFetchErrors] = useState<Record<string, string>>({});
+  const [retryAttempts, setRetryAttempts] = useState<Record<string, number>>({});
+  const [retryingCompanies, setRetryingCompanies] = useState<Record<string, boolean>>({});
   const [fetchingJobs, setFetchingJobs] = useState<boolean>(false);
   const [fetchProgress, setFetchProgress] = useState<{ current: number; total: number; company: string }>({
     current: 0,
@@ -175,6 +177,43 @@ export const JobFindingHub: React.FC = () => {
   const supportedAtsCompanies = companies.filter(c => !c.isInternalOrUnsupported);
   const internalAtsCompanies = companies.filter(c => c.isInternalOrUnsupported);
 
+  const fetchOpenAtsJobs = async (company: typeof supportedAtsCompanies[number], signal?: AbortSignal) => {
+    if (company.normalizedAts === 'greenhouse') return fetchGreenhouseJobs(company.slug, company.Company, signal);
+    if (company.normalizedAts === 'ashby') return fetchAshbyJobs(company.slug, company.Company, signal);
+    if (company.normalizedAts === 'lever') return fetchLeverJobs(company.slug, company.Company, signal);
+    if (company.normalizedAts === 'smartrecruiters') return fetchSmartRecruitersJobs(company.slug, company.Company, signal);
+    return [];
+  };
+
+  const filterFetchedJobs = (companyJobs: JobItem[]) => {
+    const roleQueries = filters.role
+      .split(',')
+      .map(role => role.trim().toLowerCase())
+      .filter(Boolean)
+      .map(role => role.split(/\s+/).filter(Boolean));
+    const locTargets = filters.location
+      ? filters.location.split(',').map(s => s.trim().toLowerCase()).filter(Boolean)
+      : [];
+    const cleanKws = filters.keywords
+      ? filters.keywords.split(',').map(s => s.trim().toLowerCase()).filter(Boolean)
+      : [];
+
+    return companyJobs.filter(job => {
+      const titleWords = job.title.toLowerCase();
+      if (roleQueries.length > 0 && !roleQueries.some(words => words.every(word => titleWords.includes(word)))) return false;
+      if (filters.continent && filters.continent !== 'All Continents') {
+        const continents = filters.continent.split(',').map(value => value.trim()).filter(Boolean);
+        if (!isLocationInAnyContinent(job.location, continents)) return false;
+      }
+      if (locTargets.length > 0 && !locTargets.some(target => (job.location || '').toLowerCase().includes(target))) return false;
+      if (cleanKws.length > 0) {
+        const combinedText = `${job.title} ${job.location} ${job.experience} ${job.description}`.toLowerCase();
+        if (!cleanKws.some(kw => combinedText.includes(kw))) return false;
+      }
+      return true;
+    });
+  };
+
   // Live Query Execution
   const runLiveJobFetch = async () => {
     if (selectedCompanies.length === 0) {
@@ -205,60 +244,9 @@ export const JobFindingHub: React.FC = () => {
       setFetchProgress({ current: i + 1, total: targetList.length, company: comp.Company });
 
       try {
-        let companyJobs: JobItem[] = [];
-        if (comp.normalizedAts === 'greenhouse') {
-          companyJobs = await fetchGreenhouseJobs(comp.slug, comp.Company, controller.signal);
-        } else if (comp.normalizedAts === 'ashby') {
-          companyJobs = await fetchAshbyJobs(comp.slug, comp.Company, controller.signal);
-        } else if (comp.normalizedAts === 'lever') {
-          companyJobs = await fetchLeverJobs(comp.slug, comp.Company, controller.signal);
-        } else if (comp.normalizedAts === 'smartrecruiters') {
-          companyJobs = await fetchSmartRecruitersJobs(comp.slug, comp.Company, controller.signal);
-        }
+        const companyJobs = await fetchOpenAtsJobs(comp, controller.signal);
         fetchedCounts[comp.Company] = companyJobs.length;
-
-        // Filters in memory
-        const roleQueries = filters.role
-          .split(',')
-          .map(role => role.trim().toLowerCase())
-          .filter(Boolean)
-          .map(role => role.split(/\s+/).filter(Boolean));
-        const locTargets = filters.location
-          ? filters.location.split(',').map(s => s.trim().toLowerCase()).filter(Boolean)
-          : [];
-        const cleanKws = filters.keywords
-          ? filters.keywords.split(',').map(s => s.trim().toLowerCase()).filter(Boolean)
-          : [];
-
-        const matched = companyJobs.filter(job => {
-          // 1. Role Filter
-          const titleWords = job.title.toLowerCase();
-          if (roleQueries.length > 0 && !roleQueries.some(words => words.every(word => titleWords.includes(word)))) return false;
-
-          // 2. Continent / Region Filter
-          if (filters.continent && filters.continent !== 'All Continents') {
-            const continents = filters.continent.split(',').map(value => value.trim()).filter(Boolean);
-            if (!isLocationInAnyContinent(job.location, continents)) {
-              return false;
-            }
-          }
-
-          // 3. Location (Comma-separated ANY match)
-          if (locTargets.length > 0) {
-            const jLoc = (job.location || '').toLowerCase();
-            if (!locTargets.some(target => jLoc.includes(target))) return false;
-          }
-
-          // 4. JD Keywords (Always ANY match mode)
-          if (cleanKws.length > 0) {
-            const combinedText = `${job.title} ${job.location} ${job.experience} ${job.description}`.toLowerCase();
-            if (!cleanKws.some(kw => combinedText.includes(kw))) {
-              return false;
-            }
-          }
-
-          return true;
-        });
+        const matched = filterFetchedJobs(companyJobs);
 
         fetchedList.push(...matched);
         openingCounts[comp.Company] = matched.length;
@@ -278,6 +266,32 @@ export const JobFindingHub: React.FC = () => {
     setStatusMessage(controller.signal.aborted
       ? `Fetching stopped. Found ${fetchedList.length} matching job opportunities so far.`
       : `Completed! Found ${fetchedList.length} matching job opportunities across ${targetList.length} companies.`);
+  };
+
+  const retryCompanyFetch = async (company: CompanyRecord) => {
+    if ((retryAttempts[company.Company] || 0) >= 1 || retryingCompanies[company.Company]) return;
+    setRetryAttempts(current => ({ ...current, [company.Company]: (current[company.Company] || 0) + 1 }));
+    setRetryingCompanies(current => ({ ...current, [company.Company]: true }));
+
+    try {
+      const companyJobs = await fetchOpenAtsJobs(company);
+      const matched = filterFetchedJobs(companyJobs);
+      setCompanyFetchedCounts(current => ({ ...current, [company.Company]: companyJobs.length }));
+      setCompanyOpeningCounts(current => ({ ...current, [company.Company]: matched.length }));
+      setCompanyFetchErrors(current => {
+        const next = { ...current };
+        delete next[company.Company];
+        return next;
+      });
+      setJobs(current => [...current.filter(job => job.company !== company.Company), ...matched]);
+    } catch (err) {
+      setCompanyFetchErrors(current => ({
+        ...current,
+        [company.Company]: err instanceof Error ? err.message : 'Unknown fetch error'
+      }));
+    } finally {
+      setRetryingCompanies(current => ({ ...current, [company.Company]: false }));
+    }
   };
 
   const stopLiveJobFetch = () => {
@@ -833,6 +847,9 @@ export const JobFindingHub: React.FC = () => {
             .filter(company => Boolean(companyFetchErrors[company.Company]))
             .sort((a, b) => a.Company.localeCompare(b.Company))}
           fetchErrors={companyFetchErrors}
+          retryAttempts={retryAttempts}
+          retryingCompanies={retryingCompanies}
+          onRetry={retryCompanyFetch}
         />
       )}
 

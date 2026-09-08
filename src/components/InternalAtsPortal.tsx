@@ -18,6 +18,7 @@ import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import LanguageIcon from '@mui/icons-material/Language';
 import type { CompanyRecord } from '../types';
 import { getSafeExternalUrl } from '../utils/security';
+import { getLastCheckedMap, markLastChecked } from '../utils/atsCheckStorage';
 
 interface InternalAtsPortalProps {
   companies: CompanyRecord[];
@@ -27,6 +28,7 @@ export const InternalAtsPortal: React.FC<InternalAtsPortalProps> = ({ companies 
   const [searchTerm, setSearchTerm] = React.useState('');
   const [selectedSystem, setSelectedSystem] = React.useState<string>('all');
   const [page, setPage] = React.useState(1);
+  const [lastChecked, setLastChecked] = React.useState<Record<string, string>>(() => getLastCheckedMap());
   const itemsPerPage = 12;
 
   // Filter systems list
@@ -78,6 +80,11 @@ export const InternalAtsPortal: React.FC<InternalAtsPortalProps> = ({ companies 
   React.useEffect(() => {
     setPage(1);
   }, [searchTerm, selectedSystem]);
+
+  const handlePortalClick = (company: string) => {
+    const checkedAt = markLastChecked(company);
+    setLastChecked(current => ({ ...current, [company]: checkedAt }));
+  };
 
   const getSystemChipColor = (ats: string) => {
     const a = (ats || '').toLowerCase();
@@ -307,6 +314,7 @@ export const InternalAtsPortal: React.FC<InternalAtsPortalProps> = ({ companies 
                     size="medium"
                     endIcon={<OpenInNewIcon sx={{ fontSize: 15 }} />}
                     href={targetUrl}
+                    onClick={() => handlePortalClick(comp.Company)}
                     target="_blank"
                     rel="noreferrer"
                     sx={{
@@ -325,6 +333,9 @@ export const InternalAtsPortal: React.FC<InternalAtsPortalProps> = ({ companies 
                   >
                     Open Career Portal
                   </Button>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center', mt: 0.8 }}>
+                    Last checked: {lastChecked[comp.Company] ? new Date(lastChecked[comp.Company]).toLocaleString() : 'Never'}
+                  </Typography>
                 </CardContent>
               </Card>
             </Grid>

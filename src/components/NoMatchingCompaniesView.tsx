@@ -15,6 +15,7 @@ import {
 } from '@mui/material';
 import SearchOffIcon from '@mui/icons-material/SearchOff';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import type { CompanyRecord } from '../types';
 
 interface NoMatchingCompaniesViewProps {
@@ -22,9 +23,12 @@ interface NoMatchingCompaniesViewProps {
     fetchedCounts: Record<string, number>;
     failedCompanies: CompanyRecord[];
     fetchErrors: Record<string, string>;
+    retryAttempts: Record<string, number>;
+    retryingCompanies: Record<string, boolean>;
+    onRetry: (company: CompanyRecord) => void;
 }
 
-export const NoMatchingCompaniesView: React.FC<NoMatchingCompaniesViewProps> = ({ companies, fetchedCounts, failedCompanies, fetchErrors }) => {
+export const NoMatchingCompaniesView: React.FC<NoMatchingCompaniesViewProps> = ({ companies, fetchedCounts, failedCompanies, fetchErrors, retryAttempts, retryingCompanies, onRetry }) => {
     const [page, setPage] = React.useState(1);
     const companiesPerPage = 10;
     const totalPages = Math.ceil(companies.length / companiesPerPage) || 1;
@@ -124,6 +128,7 @@ export const NoMatchingCompaniesView: React.FC<NoMatchingCompaniesViewProps> = (
                             <TableRow sx={{ bgcolor: '#fef2f2' }}>
                                 <TableCell sx={{ fontWeight: 800, color: '#7f1d1d' }}>Company</TableCell>
                                 <TableCell sx={{ fontWeight: 800, color: '#7f1d1d' }}>Reason</TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 800, color: '#7f1d1d' }}>Action</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
@@ -131,6 +136,18 @@ export const NoMatchingCompaniesView: React.FC<NoMatchingCompaniesViewProps> = (
                                 <TableRow key={company.Company} hover>
                                     <TableCell sx={{ fontWeight: 700 }}>{company.Company}</TableCell>
                                     <TableCell sx={{ color: '#7f1d1d' }}>{fetchErrors[company.Company]}</TableCell>
+                                    <TableCell align="right">
+                                        <Button
+                                            size="small"
+                                            variant="outlined"
+                                            startIcon={<RefreshIcon />}
+                                            onClick={() => onRetry(company)}
+                                            disabled={Boolean(retryingCompanies[company.Company]) || (retryAttempts[company.Company] || 0) >= 1}
+                                            sx={{ textTransform: 'none', fontWeight: 700 }}
+                                        >
+                                            {retryingCompanies[company.Company] ? 'Retrying...' : (retryAttempts[company.Company] || 0) >= 1 ? 'Retry used' : 'Retry once'}
+                                        </Button>
+                                    </TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
