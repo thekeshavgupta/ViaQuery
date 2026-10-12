@@ -59,26 +59,10 @@ export function App() {
           }}
         >
           <Toolbar sx={{ px: { xs: 2.5, md: 5 }, py: 1 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexGrow: 1 }}>
-              <Box
-                component="img"
-                src="/favicon.svg"
-                alt=""
-                sx={{
-                  width: 44,
-                  height: 42,
-                  objectFit: 'contain',
-                  flexShrink: 0
-                }}
-              />
-              <Box>
-                <Typography variant="h5" fontWeight={900} color="text.primary" sx={{ lineHeight: 1.1, fontSize: '1.4rem', letterSpacing: -0.5 }}>
-                  ViaQuery
-                </Typography>
-                {/* <Typography variant="caption" color="#64748b" fontWeight={600} sx={{ letterSpacing: 0.2 }}>
-                  Direct ATS Intelligence & SWE Discovery
-                </Typography> */}
-              </Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
+              <Typography variant="h5" fontWeight={900} color="text.primary" sx={{ lineHeight: 1.1, fontSize: '1.4rem', letterSpacing: -0.5 }}>
+                ViaQuery
+              </Typography>
             </Box>
 
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

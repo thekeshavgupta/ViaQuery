@@ -54,12 +54,9 @@ export const Footer: React.FC = () => {
           <Divider sx={{ my: 1, borderColor: '#f1f5f9' }} />
 
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Box component="img" src="/favicon.svg" alt="" sx={{ width: 20, height: 20, objectFit: 'contain' }} />
-              <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                ViaQuery ATS Explorer
-              </Typography>
-            </Box>
+            <Typography variant="caption" color="text.secondary" fontWeight={600}>
+              ViaQuery ATS Explorer
+            </Typography>
             <Typography variant="caption" color="text.secondary">
               Local Browser Storage Engine • Private & Client-Side
             </Typography>
