@@ -16,6 +16,7 @@ import {
   MenuItem,
   TextField
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
@@ -51,6 +52,8 @@ export const JobList: React.FC<JobListProps> = ({
   appliedJobIds,
   onToggleApplied
 }) => {
+  const theme = useTheme();
+  const isDarkMode = theme.palette.mode === 'dark';
   const [page, setPage] = React.useState(1);
   const [jobsPerPage, setJobsPerPage] = React.useState<number>(10);
   const [companyFilter, setCompanyFilter] = React.useState('');
@@ -99,6 +102,12 @@ export const JobList: React.FC<JobListProps> = ({
 
   const getAtsBadgeColor = (ats: string) => {
     const a = ats.toLowerCase();
+    if (isDarkMode) {
+      if (a.includes('greenhouse')) return { bg: '#24352e', text: '#a8ddbd', border: '#3e6650' };
+      if (a.includes('ashby')) return { bg: '#1f3a5f', text: '#a5d6ff', border: '#2f5b91' };
+      if (a.includes('lever')) return { bg: '#3b3327', text: '#e6c994', border: '#655338' };
+      return { bg: '#353638', text: '#d1d1d3', border: '#505154' };
+    }
     if (a.includes('greenhouse')) return { bg: '#ecfdf5', text: '#065f46', border: '#a7f3d0' };
     if (a.includes('ashby')) return { bg: '#eff6ff', text: '#1e40af', border: '#bfdbfe' };
     if (a.includes('lever')) return { bg: '#fffbeb', text: '#92400e', border: '#fde68a' };
@@ -106,6 +115,13 @@ export const JobList: React.FC<JobListProps> = ({
   };
 
   const getExperienceBadgeColor = (exp: string) => {
+    if (isDarkMode) {
+      if (exp === 'Not specified') return { bg: '#353638', text: '#c5c5c7', border: '#505154' };
+      if (exp.includes('0-1') || exp.toLowerCase().includes('intern')) {
+        return { bg: '#24352e', text: '#a8ddbd', border: '#3e6650' };
+      }
+      return { bg: '#3b3327', text: '#e6c994', border: '#655338' };
+    }
     if (exp === 'Not specified') {
       return { bg: '#f1f5f9', text: '#475569', border: '#e2e8f0' };
     }
@@ -120,17 +136,17 @@ export const JobList: React.FC<JobListProps> = ({
       <Chip
         label={`${companiesWithOpenings} companies with openings`}
         size="small"
-        sx={{ bgcolor: '#f0fdf4', color: '#15803d', fontWeight: 700, borderRadius: 2 }}
+        sx={{ bgcolor: isDarkMode ? '#24352e' : '#f0fdf4', color: isDarkMode ? '#a8ddbd' : '#15803d', fontWeight: 700, borderRadius: 2 }}
       />
       <Chip
         label={`${companiesWithoutOpenings} companies with no matching openings`}
         size="small"
-        sx={{ bgcolor: '#fff7ed', color: '#c2410c', fontWeight: 700, borderRadius: 2 }}
+        sx={{ bgcolor: isDarkMode ? '#3b3327' : '#fff7ed', color: isDarkMode ? '#e6c994' : '#c2410c', fontWeight: 700, borderRadius: 2 }}
       />
       <Chip
         label={`${companiesWithFetchErrors} companies could not be fetched`}
         size="small"
-        sx={{ bgcolor: '#fef2f2', color: '#b91c1c', fontWeight: 700, borderRadius: 2 }}
+        sx={{ bgcolor: isDarkMode ? '#3b292b' : '#fef2f2', color: isDarkMode ? '#efb2b6' : '#b91c1c', fontWeight: 700, borderRadius: 2 }}
       />
     </Box>
   );
@@ -174,12 +190,12 @@ export const JobList: React.FC<JobListProps> = ({
           <Chip
             label={`${jobs.length} Positions`}
             size="small"
-            sx={{ bgcolor: '#eff6ff', color: '#1d4ed8', fontWeight: 700, borderRadius: 2 }}
+            sx={{ bgcolor: isDarkMode ? '#1f3a5f' : '#eff6ff', color: isDarkMode ? '#a5d6ff' : '#1d4ed8', fontWeight: 700, borderRadius: 2 }}
           />
           <Chip
             label={`${uniqueCompaniesCount} Companies`}
             size="small"
-            sx={{ bgcolor: '#f0fdf4', color: '#15803d', fontWeight: 700, borderRadius: 2 }}
+            sx={{ bgcolor: isDarkMode ? '#24352e' : '#f0fdf4', color: isDarkMode ? '#a8ddbd' : '#15803d', fontWeight: 700, borderRadius: 2 }}
           />
         </Box>
 
@@ -198,7 +214,7 @@ export const JobList: React.FC<JobListProps> = ({
                   fontSize: '0.85rem',
                   fontWeight: 700,
                   borderRadius: 2,
-                  bgcolor: '#ffffff',
+                  bgcolor: isDarkMode ? '#161b22' : '#ffffff',
                   '& .MuiSelect-select': { py: 0.5, px: 1.5 }
                 }}
               >
@@ -272,10 +288,10 @@ export const JobList: React.FC<JobListProps> = ({
                   {/* 1. COMPANY HEADING ON TOP */}
                   <Box
                     sx={{
-                      bgcolor: '#f8fafc',
+                      bgcolor: isDarkMode ? '#21262d' : '#f8fafc',
                       px: { xs: 2.5, md: 3.5 },
                       py: 2,
-                      borderBottom: '1px solid #edf2f7',
+                      borderBottom: `1px solid ${isDarkMode ? '#30363d' : '#edf2f7'}`,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
@@ -286,8 +302,8 @@ export const JobList: React.FC<JobListProps> = ({
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                       <Avatar
                         sx={{
-                          bgcolor: '#dbeafe',
-                          color: '#1d4ed8',
+                          bgcolor: isDarkMode ? '#1f3a5f' : '#dbeafe',
+                          color: isDarkMode ? '#a5d6ff' : '#1d4ed8',
                           width: 44,
                           height: 44,
                           fontWeight: 800,
@@ -337,8 +353,10 @@ export const JobList: React.FC<JobListProps> = ({
                             elevation={0}
                             sx={{
                               borderRadius: 3,
-                              border: isApplied ? '1.5px solid #86efac' : '1px solid #f1f5f9',
-                              bgcolor: isApplied ? '#f0fdf4' : '#ffffff',
+                              border: isApplied
+                                ? `1.5px solid ${isDarkMode ? '#3e6650' : '#86efac'}`
+                                : `1px solid ${isDarkMode ? '#30363d' : '#f1f5f9'}`,
+                              bgcolor: isApplied ? (isDarkMode ? '#1b3a2b' : '#f0fdf4') : (isDarkMode ? '#1c2128' : '#ffffff'),
                               transition: 'all 0.2s ease',
                               '&:hover': {
                                 borderColor: isApplied ? '#22c55e' : '#3b82f6',
@@ -371,7 +389,7 @@ export const JobList: React.FC<JobListProps> = ({
 
                                   <Box sx={{ flex: 1 }}>
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
-                                      <Typography variant="h6" fontWeight={700} color="#0f172a" sx={{ fontSize: '1.05rem' }}>
+                                      <Typography variant="h6" fontWeight={700} color="text.primary" sx={{ fontSize: '1.05rem' }}>
                                         {job.title}
                                       </Typography>
                                       {isApplied && (
@@ -396,8 +414,8 @@ export const JobList: React.FC<JobListProps> = ({
                                         variant="caption"
                                         sx={{
                                           fontFamily: 'monospace',
-                                          color: '#64748b',
-                                          bgcolor: '#f1f5f9',
+                                          color: isDarkMode ? '#c9d1d9' : '#64748b',
+                                          bgcolor: isDarkMode ? '#21262d' : '#f1f5f9',
                                           px: 1,
                                           py: 0.3,
                                           borderRadius: 1.5,

@@ -29,8 +29,10 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import ClearIcon from '@mui/icons-material/Clear';
 import SelectAllIcon from '@mui/icons-material/SelectAll';
 import StopIcon from '@mui/icons-material/Stop';
+import BoltIcon from '@mui/icons-material/Bolt';
 import Papa from 'papaparse';
 import type { CompanyRecord, JobItem, FilterState, AppliedJob } from '../types';
+import { useTheme } from '@mui/material/styles';
 import { parseAtsAndSlug, fetchGreenhouseJobs, fetchLeverJobs, fetchAshbyJobs, fetchSmartRecruitersJobs } from '../services/atsService';
 import { CONTINENTS, isLocationInAnyContinent } from '../utils/continentMapping';
 import { getAppliedJobs, saveAppliedJob, removeAppliedJob } from '../utils/appliedJobsStorage';
@@ -39,10 +41,18 @@ import { InternalAtsPortal } from './InternalAtsPortal';
 import { AppliedPositionsView } from './AppliedPositionsView';
 import { NoMatchingCompaniesView } from './NoMatchingCompaniesView';
 
-const MAX_CSV_BYTES = 5 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 const MAX_COMPANIES = 3000;
 
+const getCellValue = (row: Record<string, unknown>, columnNames: string[]): string => {
+  const normalizedNames = new Set(columnNames.map(name => name.trim().toLowerCase()));
+  const entry = Object.entries(row).find(([key]) => normalizedNames.has(key.trim().toLowerCase()));
+  return String(entry?.[1] ?? '').trim();
+};
+
 export const JobFindingHub: React.FC = () => {
+  const theme = useTheme();
+  const isDarkMode = theme.palette.mode === 'dark';
   const [activeTab, setActiveTab] = useState<number>(0);
 
   // Applied positions state (synced with localStorage)
@@ -113,44 +123,69 @@ export const JobFindingHub: React.FC = () => {
       });
   };
 
-  const parseAndLoadCsv = (csvText: string, sourceName: string) => {
-    setLoadingFile(true);
-    if (new Blob([csvText]).size > MAX_CSV_BYTES) {
-      setStatusMessage('CSV file is too large. Please upload a file smaller than 5 MB.');
+  const parseAndLoadRows = (rows: Array<Record<string, unknown>>, sourceName: string, warning = '') => {
+    const parsed: CompanyRecord[] = [];
+      let truncated = false;
+      for (const row of rows) {
+        const compName = getCellValue(row, ['Company', 'name']);
+        const rawAts = getCellValue(row, ['ATS Type', 'ATS', 'ats_system']);
+        const sampleUrl = getCellValue(row, ['Job URL', 'job_url', 'url']);
+
+        if (compName) {
+          if (parsed.length >= MAX_COMPANIES) {
+            truncated = true;
+            continue;
+          }
+          const parsedMeta = parseAtsAndSlug(compName, rawAts, sampleUrl);
+          parsed.push({
+            Company: compName,
+            ATS: rawAts || 'Internal',
+            sampleUrl,
+            ...parsedMeta
+          });
+        }
+    }
+
+    if (parsed.length === 0) {
+      setStatusMessage('No company rows found. Include a Company column and an ATS Type column.');
       setLoadingFile(false);
       return;
     }
-    Papa.parse(csvText, {
+
+    setCompanies(parsed);
+    setFileName(sourceName);
+    setStatusMessage([
+      warning,
+      truncated ? `Only the first ${MAX_COMPANIES} companies were loaded.` : ''
+    ].filter(Boolean).join(' '));
+    const openAts = parsed.filter(c => !c.isInternalOrUnsupported).slice(0, 12).map(c => c.Company);
+    setSelectedCompanies(openAts);
+    setLoadingFile(false);
+  };
+
+  const parseAndLoadCsv = (csvText: string, sourceName: string) => {
+    setLoadingFile(true);
+    if (new Blob([csvText]).size > MAX_UPLOAD_BYTES) {
+      setStatusMessage('File is too large. Please upload a file smaller than 5 MB.');
+      setLoadingFile(false);
+      return;
+    }
+    Papa.parse<Record<string, string>>(csvText, {
       header: true,
       skipEmptyLines: true,
       complete: (results) => {
-        const parsed: CompanyRecord[] = [];
-        for (const row of results.data as any[]) {
-          if (parsed.length >= MAX_COMPANIES) break;
-          const compName = (row.Company || row.company || row.name || '').trim();
-          const rawAts = (row.ATS || row.ats || row.ats_system || '').trim();
-          const sampleUrl = (row['Job URL'] || row.job_url || row.url || '').trim();
-
-          if (compName) {
-            const parsedMeta = parseAtsAndSlug(compName, rawAts, sampleUrl);
-            parsed.push({
-              Company: compName,
-              ATS: rawAts || 'Internal',
-              sampleUrl: sampleUrl,
-              ...parsedMeta
-            });
-          }
+        if (results.errors.length > 0) {
+          console.warn('CSV parsing warnings:', results.errors);
         }
-
-        setCompanies(parsed);
-        setFileName(sourceName);
-        // Default select first 12 open ATS companies
-        const openAts = parsed.filter(c => !c.isInternalOrUnsupported).slice(0, 12).map(c => c.Company);
-        setSelectedCompanies(openAts);
-        setLoadingFile(false);
+        parseAndLoadRows(
+          results.data,
+          sourceName,
+          results.errors.length > 0 ? 'Some CSV rows had formatting issues. Valid company rows were loaded.' : ''
+        );
       },
-      error: (err: any) => {
-        console.error('PapaParse error:', err);
+      error: (err: Error) => {
+        console.error('CSV parsing error:', err);
+        setStatusMessage('Could not read this CSV file. Check its formatting and try again.');
         setLoadingFile(false);
       }
     });
@@ -159,18 +194,46 @@ export const JobFindingHub: React.FC = () => {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > MAX_CSV_BYTES) {
-      setStatusMessage('CSV file is too large. Please upload a file smaller than 5 MB.');
-      e.target.value = '';
+    e.target.value = '';
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setStatusMessage('File is too large. Please upload a file smaller than 5 MB.');
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = event.target?.result as string;
-      parseAndLoadCsv(text, file.name);
-    };
-    reader.readAsText(file);
+    setLoadingFile(true);
+    setStatusMessage('');
+    if (file.name.toLowerCase().endsWith('.xlsx')) {
+      import('read-excel-file/browser')
+        .then(({ default: readXlsxFile }) => readXlsxFile(file))
+        .then(workbook => {
+          const rows = workbook.flatMap(({ sheet, data }) => {
+            const [headerRow, ...dataRows] = data;
+            const headers = (headerRow || []).map(value => String(value ?? '').trim());
+            return dataRows.map(values => {
+              const row = Object.fromEntries(headers.map((header, index) => [header, values[index] ?? '']));
+              return {
+                ...row,
+                'ATS Type': getCellValue(row, ['ATS Type', 'ATS', 'ats_system']) || sheet
+              };
+            });
+          });
+          parseAndLoadRows(rows, file.name);
+        })
+        .catch((err: unknown) => {
+          console.error('Excel workbook parsing error:', err);
+          setStatusMessage('Could not read this Excel workbook. Check that it is a valid .xlsx file.');
+          setLoadingFile(false);
+        });
+    } else if (file.name.toLowerCase().endsWith('.csv')) {
+      file.text().then(text => parseAndLoadCsv(text, file.name)).catch((err: unknown) => {
+        console.error('CSV file reading error:', err);
+        setStatusMessage('Could not read this CSV file. Check its formatting and try again.');
+        setLoadingFile(false);
+      });
+    } else {
+      setStatusMessage('Unsupported file type. Please upload a .csv or .xlsx file.');
+      setLoadingFile(false);
+    }
   };
 
   // Segregation of companies
@@ -308,9 +371,12 @@ export const JobFindingHub: React.FC = () => {
             p: { xs: 3, md: 4 },
             mb: 4,
             borderRadius: 4,
-            border: '1.5px dashed #93c5fd',
-            background: 'linear-gradient(135deg, #f0f7ff 0%, #ffffff 60%, #f8fafc 100%)',
-            boxShadow: '0 4px 20px -2px rgba(26, 115, 232, 0.08)'
+            border: '1.5px dashed',
+            borderColor: isDarkMode ? '#30363d' : '#93c5fd',
+            background: isDarkMode
+              ? 'linear-gradient(135deg, #161b22 0%, #161b22 60%, #0d1117 100%)'
+              : 'linear-gradient(135deg, #f0f7ff 0%, #ffffff 60%, #f8fafc 100%)',
+            boxShadow: isDarkMode ? '0 4px 20px -2px rgba(0, 0, 0, 0.25)' : '0 4px 20px -2px rgba(26, 115, 232, 0.08)'
           }}
         >
           <Grid container spacing={3} alignItems="center">
@@ -318,24 +384,24 @@ export const JobFindingHub: React.FC = () => {
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
                 <Box
                   sx={{
-                    bgcolor: '#1a73e8',
+                    bgcolor: isDarkMode ? '#2f81f7' : '#1a73e8',
                     color: '#ffffff',
                     p: 1,
                     borderRadius: 2.5,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    boxShadow: '0 4px 12px rgba(26, 115, 232, 0.3)'
+                    boxShadow: isDarkMode ? '0 4px 12px rgba(0, 0, 0, 0.25)' : '0 4px 12px rgba(26, 115, 232, 0.3)'
                   }}
                 >
-                  <CloudUploadIcon sx={{ fontSize: 28 }} />
+                  <BoltIcon sx={{ fontSize: 28 }} />
                 </Box>
                 <Box>
-                  <Typography variant="h5" fontWeight={800} color="#0f172a" sx={{ letterSpacing: -0.3 }}>
+                  <Typography variant="h5" fontWeight={800} color="text.primary" sx={{ letterSpacing: -0.3 }}>
                     Bring Your Own Dataset
                   </Typography>
-                  <Typography variant="body2" color="#475569" fontWeight={500}>
-                    To run the ATS Checker and query live positions, upload a CSV file with your target companies.
+                  <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                    To run the ATS Checker and query live positions, upload a CSV or Excel workbook with your target companies.
                   </Typography>
                 </Box>
               </Box>
@@ -343,37 +409,38 @@ export const JobFindingHub: React.FC = () => {
               {/* Format Specification Box */}
               <Box
                 sx={{
-                  bgcolor: '#ffffff',
+                  bgcolor: isDarkMode ? '#0d1117' : '#ffffff',
                   p: 2,
                   borderRadius: 2.5,
-                  border: '1px solid #e2e8f0',
+                  border: '1px solid',
+                  borderColor: isDarkMode ? '#30363d' : '#e2e8f0',
                   mt: 2,
                   maxWidth: 700
                 }}
               >
-                <Typography variant="caption" fontWeight={700} color="#1a73e8" sx={{ textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', mb: 0.8 }}>
-                  Required CSV Schema & Column Headers:
+                <Typography variant="caption" fontWeight={700} color="primary.main" sx={{ textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', mb: 0.8 }}>
+                  Required Columns (CSV or XLSX):
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mb: 1.2 }}>
                   <Chip
                     label="Company"
                     size="small"
-                    sx={{ bgcolor: '#e0f2fe', color: '#0369a1', fontWeight: 700, fontFamily: 'monospace' }}
+                    sx={{ bgcolor: isDarkMode ? '#1f3a5f' : '#e0f2fe', color: isDarkMode ? '#a5d6ff' : '#0369a1', fontWeight: 700, fontFamily: 'monospace' }}
                   />
                   <Chip
-                    label="ATS"
+                    label="ATS Type"
                     size="small"
-                    sx={{ bgcolor: '#dcfce7', color: '#15803d', fontWeight: 700, fontFamily: 'monospace' }}
+                    sx={{ bgcolor: isDarkMode ? '#1b3a2b' : '#dcfce7', color: isDarkMode ? '#7ee787' : '#15803d', fontWeight: 700, fontFamily: 'monospace' }}
                   />
                   <Chip
                     label="Job URL"
                     size="small"
-                    sx={{ bgcolor: '#fef3c7', color: '#b45309', fontWeight: 700, fontFamily: 'monospace' }}
+                    sx={{ bgcolor: isDarkMode ? '#3d2e00' : '#fef3c7', color: isDarkMode ? '#e3b341' : '#b45309', fontWeight: 700, fontFamily: 'monospace' }}
                   />
                 </Box>
-                <Typography variant="caption" color="#64748b" sx={{ lineHeight: 1.5, display: 'block' }}>
+                <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.5, display: 'block' }}>
                   • <strong>Company</strong>: Company name (e.g., Figma, Stripe, Datadog)<br />
-                  • <strong>ATS</strong>: Supported ATS name (<code>greenhouse</code>, <code>ashby</code>, <code>lever</code>, <code>smartrecruiters</code>) or enterprise portal (<code>workday</code>, <code>internal</code>)<br />
+                  • <strong>ATS Type</strong>: Supported ATS name (<code>greenhouse</code>, <code>ashby</code>, <code>lever</code>, <code>smartrecruiters</code>) or enterprise portal (<code>workday</code>, <code>internal</code>). Excel sheet names are used when this cell is blank.<br />
                   • <strong>Job URL</strong>: Sample job opening or career page link (used to identify board tokens and provide direct links)
                 </Typography>
               </Box>
@@ -397,8 +464,8 @@ export const JobFindingHub: React.FC = () => {
                     boxShadow: '0 6px 20px rgba(26, 115, 232, 0.35)'
                   }}
                 >
-                  Upload Your Companies CSV
-                  <input type="file" accept=".csv" hidden onChange={handleFileUpload} />
+                  Upload Companies File
+                  <input type="file" accept=".csv,.xlsx" hidden onChange={handleFileUpload} />
                 </Button>
 
                 <Button
@@ -451,15 +518,15 @@ export const JobFindingHub: React.FC = () => {
                     boxShadow: '0 4px 14px rgba(26, 115, 232, 0.2)'
                   }}
                 >
-                  Upload Different CSV
-                  <input type="file" accept=".csv" hidden onChange={handleFileUpload} />
+                  Upload Different File
+                  <input type="file" accept=".csv,.xlsx" hidden onChange={handleFileUpload} />
                 </Button>
                 <Box>
                   <Typography variant="subtitle1" fontWeight={700} color="#0f172a">
                     Active Dataset: <span style={{ color: '#1a73e8' }}>{loadingFile ? 'Loading...' : fileName}</span>
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    Total Loaded: <strong>{companies.length} companies</strong> • Format: <code>Company, ATS, Job URL</code>
+                    Total Loaded: <strong>{companies.length} companies</strong> • Format: <code>Company, ATS Type, Job URL</code>
                   </Typography>
                 </Box>
               </Box>
@@ -817,7 +884,7 @@ export const JobFindingHub: React.FC = () => {
 
             {statusMessage && (
               <Alert
-                severity={statusMessage.startsWith('Please') ? 'warning' : 'success'}
+                severity={statusMessage.startsWith('Completed!') ? 'success' : statusMessage.startsWith('Fetching stopped') ? 'info' : 'warning'}
                 sx={{ mt: 3, borderRadius: 2.5, fontWeight: 600 }}
               >
                 {statusMessage}

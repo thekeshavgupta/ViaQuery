@@ -17,9 +17,10 @@ export const Footer: React.FC = () => {
       sx={{
         mt: 8,
         py: 5,
-        bgcolor: '#ffffff',
-        borderTop: '1px solid #e2e8f0',
-        color: '#64748b'
+        bgcolor: 'background.paper',
+        borderTop: 1,
+        borderColor: 'divider',
+        color: 'text.secondary'
       }}
     >
       <Container maxWidth="xl" sx={{ px: { xs: 2.5, md: 5 } }}>
@@ -41,8 +42,8 @@ export const Footer: React.FC = () => {
           </Box>
 
           {/* Privacy Statement */}
-          <Typography variant="body2" sx={{ color: '#475569', lineHeight: 1.6, maxWidth: 960 }}>
-            <strong>Privacy & Data Handling:</strong> This application executes in your browser. Uploaded company CSV datasets, live search parameters, and tracked job applications are stored locally on your device via <code>localStorage</code>. Live searches contact public ATS endpoints directly from your browser, so those providers may receive standard network metadata such as your IP address and request information.
+          <Typography variant="body2" sx={{ color: 'text.secondary', lineHeight: 1.6, maxWidth: 960 }}>
+            <strong>Privacy & Data Handling:</strong> This application executes in your browser. Uploaded company CSV/XLSX datasets, live search parameters, and tracked job applications are stored locally on your device via <code>localStorage</code>. Live searches contact public ATS endpoints directly from your browser, so those providers may receive standard network metadata such as your IP address and request information.
           </Typography>
 
           {/* Disclaimer */}
@@ -54,14 +55,9 @@ export const Footer: React.FC = () => {
 
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Box
-                component="img"
-                src="./viaquery-logo.png"
-                alt="ViaQuery"
-                sx={{ width: 22, height: 22, borderRadius: 1 }}
-              />
+              <Box component="img" src="/favicon.svg" alt="" sx={{ width: 20, height: 20, objectFit: 'contain' }} />
               <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                ViaQuery ATS Explorer • Built with Google Material Design
+                ViaQuery ATS Explorer
               </Typography>
             </Box>
             <Typography variant="caption" color="text.secondary">

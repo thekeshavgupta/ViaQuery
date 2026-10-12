@@ -1,32 +1,25 @@
-# React + TypeScript + Vite
+# ViaQuery
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+ViaQuery searches live job openings across supported ATS providers and keeps job application tracking in your browser.
 
-Currently, two official plugins are available:
+## Company datasets
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Upload a `.csv` or `.xlsx` file with a `Company` column and an `ATS Type` column. CSV files can also use the `ATS` header. An optional `Job URL` column can provide a company-specific job board URL.
 
-## React Compiler
+Excel workbooks may contain multiple sheets. Each sheet is read and combined; if a row has no ATS value, its sheet name is used as the ATS type. For example, sheets named `Greenhouse`, `Ashby`, `Lever`, `SmartRecruiters`, and `Internals` can each list companies under `Company`.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Uploads are processed in the browser, limited to 5 MB and 3,000 companies, and are not uploaded to a ViaQuery server. A dark theme is available from the theme button in the header and its preference is saved in local browser storage.
 
-## Expanding the Oxlint configuration
+## Development
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```sh
+npm install
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## Checks
+
+```sh
+npm run build
+npm run lint
+```

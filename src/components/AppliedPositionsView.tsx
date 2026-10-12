@@ -14,6 +14,7 @@ import {
   Avatar,
   Stack
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
@@ -34,6 +35,7 @@ export const AppliedPositionsView: React.FC<AppliedPositionsViewProps> = ({
   appliedJobs,
   onRemoveApplied
 }) => {
+  const isDarkMode = useTheme().palette.mode === 'dark';
   const [searchTerm, setSearchTerm] = React.useState('');
   const [page, setPage] = React.useState(1);
   const itemsPerPage = 8;
@@ -300,12 +302,12 @@ export const AppliedPositionsView: React.FC<AppliedPositionsViewProps> = ({
                           variant="caption"
                           sx={{
                             fontFamily: 'monospace',
-                            color: '#0f172a',
-                            bgcolor: '#f8fafc',
+                            color: isDarkMode ? '#e6edf3' : '#0f172a',
+                            bgcolor: isDarkMode ? '#21262d' : '#f8fafc',
                             px: 1,
                             py: 0.4,
                             borderRadius: 1.5,
-                            border: '1px solid #cbd5e1',
+                            border: `1px solid ${isDarkMode ? '#30363d' : '#cbd5e1'}`,
                             fontWeight: 700,
                             fontSize: '0.78rem'
                           }}

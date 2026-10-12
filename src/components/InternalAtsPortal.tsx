@@ -12,6 +12,7 @@ import {
   Pagination,
   Avatar
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import SearchIcon from '@mui/icons-material/Search';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
@@ -25,6 +26,8 @@ interface InternalAtsPortalProps {
 }
 
 export const InternalAtsPortal: React.FC<InternalAtsPortalProps> = ({ companies }) => {
+  const theme = useTheme();
+  const isDarkMode = theme.palette.mode === 'dark';
   const [searchTerm, setSearchTerm] = React.useState('');
   const [selectedSystem, setSelectedSystem] = React.useState<string>('all');
   const [page, setPage] = React.useState(1);
@@ -321,13 +324,14 @@ export const InternalAtsPortal: React.FC<InternalAtsPortalProps> = ({ companies 
                       textTransform: 'none',
                       fontWeight: 700,
                       fontSize: '0.88rem',
-                      borderColor: '#cbd5e1',
-                      color: '#1a73e8',
+                      borderColor: isDarkMode ? '#484f58' : '#cbd5e1',
+                      color: isDarkMode ? '#58a6ff' : '#1a73e8',
                       borderRadius: 2.5,
                       py: 0.8,
                       '&:hover': {
-                        borderColor: '#1a73e8',
-                        bgcolor: '#f8fafd'
+                        borderColor: isDarkMode ? '#58a6ff' : '#1a73e8',
+                        bgcolor: isDarkMode ? '#1f2937' : '#f8fafd',
+                        color: isDarkMode ? '#79c0ff' : '#1a73e8'
                       }
                     }}
                   >
